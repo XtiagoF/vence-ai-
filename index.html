@@ -1,12 +1,172 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vence Aí</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f6f4ee">
+<title>Vence Aí</title>
+<style>
+:root{--bg:#f6f4ee;--card:#fffefb;--ink:#2b3a35;--muted:#5f6d67;--line:#e4e0d4;--primary:#3f7d6e;--on-primary:#fff;--soft:#e2f1ea;--warn-bg:#fdeede;--warn-ink:#8a4b14;--ok-bg:#e2f1ea;--ok-ink:#24574a;--old-bg:#fbf0d3;--old-ink:#7a5a00;--bad-bg:#f3e2e2;--bad-ink:#7a2e2e}
+@media(prefers-color-scheme:dark){:root{--bg:#1d2421;--card:#26302c;--ink:#e8efe9;--muted:#aab7b0;--line:#38453f;--primary:#7fc4b2;--on-primary:#12201b;--soft:#2f4a42;--warn-bg:#4a3626;--warn-ink:#f6cfa8;--ok-bg:#2f4a42;--ok-ink:#bfe6d9;--old-bg:#4a4224;--old-ink:#f0dc96;--bad-bg:#4a2c2c;--bad-ink:#f2c0c0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:17px;line-height:1.45;padding-bottom:90px}
+header{padding:20px 16px 8px}
+h1{margin:0;font-size:26px}
+.sub{color:var(--muted);margin:2px 0 12px;font-size:15px}
+main{padding:0 16px;max-width:640px;margin:0 auto}
+label{display:block;font-weight:600;margin:14px 0 6px}
+input,select{width:100%;padding:13px 14px;font-size:17px;border:1.5px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink)}
+:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 0}
+.chip{flex:none;padding:10px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-size:15px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin:0 0 14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.card.off{opacity:.65}
+.top{display:flex;gap:12px}
+.photo{flex:none;width:68px;height:68px;border-radius:14px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:34px}
+.name{font-weight:700;font-size:18px;margin:0}
+.meta{color:var(--muted);font-size:14px;margin:2px 0 0}
+.price{margin:10px 0 4px}
+.por{font-size:26px;font-weight:800;color:var(--primary)}
+.de{color:var(--muted);text-decoration:line-through;margin-left:8px;font-size:15px}
+.tag{display:inline-block;padding:6px 10px;border-radius:10px;font-size:14px;font-weight:600;margin:4px 6px 0 0}
+.t-ok{background:var(--ok-bg);color:var(--ok-ink)}
+.t-old{background:var(--old-bg);color:var(--old-ink)}
+.t-bad{background:var(--bad-bg);color:var(--bad-ink)}
+.t-warn{background:var(--warn-bg);color:var(--warn-ink)}
+.small{color:var(--muted);font-size:14px;margin:8px 0 0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button.btn{padding:12px 14px;border-radius:12px;border:1.5px solid var(--primary);background:transparent;color:var(--primary);font-size:15px;font-weight:600;cursor:pointer}
+button.btn.main{background:var(--primary);color:var(--on-primary)}
+.empty{text-align:center;color:var(--muted);padding:30px 0}
+.notice{font-size:13px;color:var(--muted);border-top:1px solid var(--line);margin-top:20px;padding-top:12px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;padding:12px 4px;border:0;background:transparent;color:var(--muted);font-size:13px;cursor:pointer}
+nav button[aria-current=page]{color:var(--primary);font-weight:700}
+nav span{display:block;font-size:22px}
+#toast{position:fixed;left:16px;right:16px;bottom:90px;background:var(--ink);color:var(--bg);padding:14px;border-radius:14px;display:none;z-index:5}
+.bignum{font-size:34px;font-weight:800;color:var(--primary);margin:0}
+.badge{display:inline-block;background:var(--soft);padding:8px 12px;border-radius:12px;margin:4px 6px 0 0;font-size:15px}
+</style>
 </head>
-<body style="font-family: sans-serif; text-align: center; padding: 40px;">
-  <h1>Vence Aí</h1>
-  <p>Meu site de teste está no ar!</p>
+<body>
+<header>
+  <h1>🌿 Vence Aí</h1>
+  <p class="sub">Ofertas perto da validade, ajudadas pela comunidade</p>
+</header>
+<main>
+
+<section id="v-ofertas">
+  <label for="unidade">Unidade</label>
+  <select id="unidade">
+    <option>Unidade de exemplo 1 (protótipo)</option>
+    <option>Unidade de exemplo 2 (protótipo)</option>
+  </select>
+  <label for="busca">Buscar produto, marca ou categoria</label>
+  <input id="busca" type="search" placeholder="Ex.: biscoito, iogurte...">
+  <div class="chips" id="chips"></div>
+  <div id="lista"></div>
+</section>
+
+<section id="v-cadastrar" hidden>
+  <h2>Cadastrar oferta</h2>
+  <p class="sub">No app real, aqui o celular vai conferir se você está na loja antes de liberar o envio.</p>
+  <form id="form">
+    <label for="f-nome">Nome do produto</label><input id="f-nome" required>
+    <label for="f-marca">Marca</label><input id="f-marca">
+    <label for="f-cat">Categoria</label>
+    <select id="f-cat"><option>Mercearia</option><option>Laticínios</option><option>Higiene</option><option>Bebidas</option><option>Outros</option></select>
+    <label for="f-de">Preço original (se houver prova)</label><input id="f-de" type="number" step="0.01" inputmode="decimal">
+    <label for="f-por">Preço promocional</label><input id="f-por" type="number" step="0.01" inputmode="decimal" required>
+    <label for="f-val">Validade impressa na embalagem</label><input id="f-val" type="date" required>
+    <label for="f-p1">Foto da prateleira</label><input id="f-p1" type="file" accept="image/*" capture="environment">
+    <label for="f-p2">Foto do produto</label><input id="f-p2" type="file" accept="image/*" capture="environment">
+    <label for="f-p3">Foto da etiqueta de preço</label><input id="f-p3" type="file" accept="image/*" capture="environment">
+    <label for="f-p4">Foto da validade</label><input id="f-p4" type="file" accept="image/*" capture="environment">
+    <p class="small">Evite fotografar pessoas. Fotos sem prova deixam o campo como "não verificado".</p>
+    <div class="actions"><button class="btn main" type="submit">Enviar oferta</button></div>
+  </form>
+</section>
+
+<section id="v-perfil" hidden>
+  <h2>Meu perfil</h2>
+  <div class="card">
+    <p class="small" style="margin:0">Nível (exemplo)</p>
+    <p class="bignum">Iniciante</p>
+    <p class="small">Pontos: 0 &middot; Confiança: em construção</p>
+    <p class="small">Sua reputação só sobe com contribuições comprovadas e confirmadas por outras pessoas.</p>
+  </div>
+  <div class="card">
+    <strong>Distintivos</strong><br>
+    <span class="badge">🌱 Primeira contribuição</span>
+    <span class="badge">📸 Fotos nítidas</span>
+  </div>
+</section>
+
+<p class="notice">O Vence Aí é um projeto comunitário independente. As informações são enviadas por pessoas e podem mudar a qualquer momento. Não é um aplicativo oficial de nenhuma rede de lojas. <strong>Protótipo com dados de exemplo.</strong></p>
+</main>
+
+<nav>
+  <button data-v="ofertas" aria-current="page"><span>🛒</span>Ofertas</button>
+  <button data-v="cadastrar"><span>➕</span>Cadastrar</button>
+  <button data-v="perfil"><span>🙂</span>Perfil</button>
+</nav>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const ofertas=[
+ {nome:"Biscoito recheado 140 g",marca:"Marca Exemplo",cat:"Mercearia",de:4.5,por:1.99,dias:6,horas:3,autor:"um colaborador confiável",confs:3,emoji:"🍪"},
+ {nome:"Iogurte natural 170 g",marca:"Marca Exemplo",cat:"Laticínios",de:3.2,por:1.5,dias:2,horas:30,autor:"um usuário iniciante",confs:1,emoji:"🥛"},
+ {nome:"Sabonete líquido 250 ml",marca:"Marca Exemplo",cat:"Higiene",de:null,por:6.9,dias:20,horas:60,autor:"um usuário de alta confiabilidade",confs:5,emoji:"🧴"},
+ {nome:"Suco de uva 1 L",marca:"Marca Exemplo",cat:"Bebidas",de:8.9,por:4.9,dias:10,horas:5,autor:"um usuário iniciante",confs:2,emoji:"🍇"},
+ {nome:"Macarrão 500 g",marca:"Marca Exemplo",cat:"Mercearia",de:5.5,por:2.9,dias:4,horas:8,autor:"um colaborador confiável",confs:2,emoji:"🍝",indisp:true}
+];
+let filtro="todas";
+const $=s=>document.querySelector(s);
+const moeda=n=>n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+function dataEm(dias){const d=new Date();d.setDate(d.getDate()+dias);return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});}
+function estado(o){
+ if(o.indisp)return["Indisponível","t-bad"];
+ if(o.horas>=48)return["Desatualizada","t-old"];
+ if(o.horas>=24)return["Pode estar desatualizada","t-old"];
+ return["Confirmada recentemente","t-ok"];
+}
+function quando(h){return h<1?"agora há pouco":h<48?"há "+h+" h":"há "+Math.floor(h/24)+" dias";}
+function validade(d){
+ const t=d<=0?"Vence hoje":d===1?"Vence amanhã":"Vence em "+d+" dias ("+dataEm(d)+")";
+ return'<span class="tag '+(d<=3?"t-warn":"t-ok")+'">📅 '+t+'</span>';
+}
+function mostrar(){
+ const q=$("#busca").value.trim().toLowerCase();
+ let l=ofertas.filter(o=>(o.nome+" "+o.marca+" "+o.cat).toLowerCase().includes(q));
+ if(filtro==="indisp")l=l.filter(o=>o.indisp);
+ else{l=l.filter(o=>!o.indisp);
+  if(filtro==="vencem")l=l.filter(o=>o.dias<=7);
+  if(filtro==="recentes")l=l.filter(o=>o.horas<24);
+  if(filtro==="preco")l=[...l].sort((a,b)=>a.por-b.por);}
+ $("#lista").innerHTML=l.length?l.map(o=>{
+  const e=estado(o);
+  return'<article class="card'+(o.indisp?" off":"")+'"><div class="top"><div class="photo" aria-hidden="true">'+o.emoji+'</div><div><p class="name">'+o.nome+'</p><p class="meta">'+o.marca+" · "+o.cat+'</p></div></div>'
+  +'<div class="price"><span class="por">'+moeda(o.por)+'</span>'+(o.de?'<span class="de">'+moeda(o.de)+'</span>':'<span class="de" style="text-decoration:none">preço original não comprovado</span>')+'</div>'
+  +validade(o.dias)+'<span class="tag '+e[1]+'">'+e[0]+'</span>'
+  +'<p class="small">Fim da promoção: desconhecido<br>Última confirmação: '+quando(o.horas)+" · "+o.confs+' confirmações<br>Publicado por '+o.autor+'</p>'
+  +'<div class="actions"><button class="btn main" data-a="confirmar">Confirmar</button><button class="btn" data-a="atualizar">Atualizar preço</button><button class="btn" data-a="acabou">Acabou</button></div></article>';
+ }).join(""):'<p class="empty">Nenhuma oferta encontrada.</p>';
+}
+function aviso(t){const el=$("#toast");el.textContent=t;el.style.display="block";clearTimeout(aviso.t);aviso.t=setTimeout(()=>el.style.display="none",3500);}
+const filtros=[["todas","Todas"],["vencem","Vencem em breve"],["recentes","Atualizadas"],["preco","Menor preço"],["indisp","Indisponíveis"]];
+$("#chips").innerHTML=filtros.map(f=>'<button class="chip" data-f="'+f[0]+'" aria-pressed="'+(f[0]==="todas")+'">'+f[1]+'</button>').join("");
+$("#chips").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;filtro=b.dataset.f;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b));mostrar();});
+$("#lista").addEventListener("click",e=>{if(e.target.dataset.a)aviso("Protótipo: no app real, aqui pediremos sua localização e fotos recentes.");});
+$("#busca").addEventListener("input",mostrar);
+$("#form").addEventListener("submit",e=>{e.preventDefault();aviso("Protótipo: ainda não salvamos nada. Isso vem na Fase 4.");});
+document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>{
+ document.querySelectorAll("nav button").forEach(x=>x.removeAttribute("aria-current"));
+ b.setAttribute("aria-current","page");
+ ["ofertas","cadastrar","perfil"].forEach(v=>$("#v-"+v).hidden=v!==b.dataset.v);
+ window.scrollTo(0,0);
+}));
+mostrar();
+</script>
 </body>
 </html>
