@@ -90,6 +90,7 @@ nav span{display:block;font-size:22px}
 
 <section id="v-perfil" hidden>
   <h2>Meu perfil</h2>
+  <div id="auth-box"></div>
   <div class="card">
     <p class="small" style="margin:0">Nível (exemplo)</p>
     <p class="bignum">Iniciante</p>
@@ -168,5 +169,8 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 mostrar();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
 </body>
 </html>
