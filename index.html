@@ -21,9 +21,8 @@ input,select{width:100%;padding:13px 14px;font-size:17px;border:1.5px solid var(
 .chip{flex:none;padding:10px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-size:15px;cursor:pointer}
 .chip[aria-pressed=true]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin:0 0 14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-.card.off{opacity:.65}
 .top{display:flex;gap:12px}
-.photo{flex:none;width:68px;height:68px;border-radius:14px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:34px}
+.photo{flex:none;width:68px;height:68px;border-radius:14px;background:var(--soft);object-fit:cover}
 .name{font-weight:700;font-size:18px;margin:0}
 .meta{color:var(--muted);font-size:14px;margin:2px 0 0}
 .price{margin:10px 0 4px}
@@ -38,15 +37,18 @@ input,select{width:100%;padding:13px 14px;font-size:17px;border:1.5px solid var(
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 button.btn{padding:12px 14px;border-radius:12px;border:1.5px solid var(--primary);background:transparent;color:var(--primary);font-size:15px;font-weight:600;cursor:pointer}
 button.btn.main{background:var(--primary);color:var(--on-primary)}
+button.btn:disabled{opacity:.6}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--primary);font-weight:600}
+.fotos{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+.fotos img{width:100%;border-radius:12px}
 .empty{text-align:center;color:var(--muted);padding:30px 0}
 .notice{font-size:13px;color:var(--muted);border-top:1px solid var(--line);margin-top:20px;padding-top:12px}
 nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav button{flex:1;padding:12px 4px;border:0;background:transparent;color:var(--muted);font-size:13px;cursor:pointer}
 nav button[aria-current=page]{color:var(--primary);font-weight:700}
 nav span{display:block;font-size:22px}
-#toast{position:fixed;left:16px;right:16px;bottom:90px;background:var(--ink);color:var(--bg);padding:14px;border-radius:14px;display:none;z-index:5}
 .bignum{font-size:34px;font-weight:800;color:var(--primary);margin:0}
-.badge{display:inline-block;background:var(--soft);padding:8px 12px;border-radius:12px;margin:4px 6px 0 0;font-size:15px}
 </style>
 </head>
 <body>
@@ -58,33 +60,33 @@ nav span{display:block;font-size:22px}
 
 <section id="v-ofertas">
   <label for="unidade">Unidade</label>
-  <select id="unidade">
-    <option>Unidade de exemplo 1 (protótipo)</option>
-    <option>Unidade de exemplo 2 (protótipo)</option>
-  </select>
+  <select id="unidade"></select>
   <label for="busca">Buscar produto, marca ou categoria</label>
   <input id="busca" type="search" placeholder="Ex.: biscoito, iogurte...">
   <div class="chips" id="chips"></div>
-  <div id="lista"></div>
+  <div id="lista"><p class="empty">Carregando...</p></div>
 </section>
 
 <section id="v-cadastrar" hidden>
   <h2>Cadastrar oferta</h2>
-  <p class="sub">No app real, aqui o celular vai conferir se você está na loja antes de liberar o envio.</p>
+  <p class="sub">Fase de testes: use apenas dados de teste. A conferência por GPS ainda será adicionada.</p>
+  <p class="small" id="f-aviso"></p>
   <form id="form">
-    <label for="f-nome">Nome do produto</label><input id="f-nome" required>
-    <label for="f-marca">Marca</label><input id="f-marca">
+    <label for="f-unidade">Unidade</label><select id="f-unidade"></select>
+    <label for="f-nome">Nome do produto</label><input id="f-nome" maxlength="80" required>
+    <label for="f-marca">Marca</label><input id="f-marca" maxlength="60">
     <label for="f-cat">Categoria</label>
     <select id="f-cat"><option>Mercearia</option><option>Laticínios</option><option>Higiene</option><option>Bebidas</option><option>Outros</option></select>
-    <label for="f-de">Preço original (se houver prova)</label><input id="f-de" type="number" step="0.01" inputmode="decimal">
-    <label for="f-por">Preço promocional</label><input id="f-por" type="number" step="0.01" inputmode="decimal" required>
+    <label for="f-de">Preço original (se houver prova)</label><input id="f-de" type="number" step="0.01" min="0" inputmode="decimal">
+    <label for="f-por">Preço promocional</label><input id="f-por" type="number" step="0.01" min="0" inputmode="decimal" required>
     <label for="f-val">Validade impressa na embalagem</label><input id="f-val" type="date" required>
     <label for="f-p1">Foto da prateleira</label><input id="f-p1" type="file" accept="image/*" capture="environment">
     <label for="f-p2">Foto do produto</label><input id="f-p2" type="file" accept="image/*" capture="environment">
     <label for="f-p3">Foto da etiqueta de preço</label><input id="f-p3" type="file" accept="image/*" capture="environment">
     <label for="f-p4">Foto da validade</label><input id="f-p4" type="file" accept="image/*" capture="environment">
-    <p class="small">Evite fotografar pessoas. Fotos sem prova deixam o campo como "não verificado".</p>
-    <div class="actions"><button class="btn main" type="submit">Enviar oferta</button></div>
+    <p class="small">Evite fotografar pessoas. As fotos ficam visíveis para quem abrir o site.</p>
+    <p class="small" id="f-msg" role="status"></p>
+    <div class="actions"><button class="btn main" id="f-enviar" type="submit">Enviar oferta</button></div>
   </form>
 </section>
 
@@ -92,19 +94,11 @@ nav span{display:block;font-size:22px}
   <h2>Meu perfil</h2>
   <div id="auth-box"></div>
   <div class="card">
-    <p class="small" style="margin:0">Nível (exemplo)</p>
-    <p class="bignum">Iniciante</p>
-    <p class="small">Pontos: 0 &middot; Confiança: em construção</p>
-    <p class="small">Sua reputação só sobe com contribuições comprovadas e confirmadas por outras pessoas.</p>
-  </div>
-  <div class="card">
-    <strong>Distintivos</strong><br>
-    <span class="badge">🌱 Primeira contribuição</span>
-    <span class="badge">📸 Fotos nítidas</span>
+    <p class="small" style="margin:0">Pontos, níveis e distintivos entram nas próximas fases. Sua reputação só vai subir com contribuições comprovadas e confirmadas por outras pessoas.</p>
   </div>
 </section>
 
-<p class="notice">O Vence Aí é um projeto comunitário independente. As informações são enviadas por pessoas e podem mudar a qualquer momento. Não é um aplicativo oficial de nenhuma rede de lojas. <strong>Protótipo com dados de exemplo.</strong></p>
+<p class="notice">O Vence Aí é um projeto comunitário independente. As informações são enviadas por pessoas e podem mudar a qualquer momento. Não é um aplicativo oficial de nenhuma rede de lojas. <strong>Fase de testes.</strong></p>
 </main>
 
 <nav>
@@ -112,65 +106,20 @@ nav span{display:block;font-size:22px}
   <button data-v="cadastrar"><span>➕</span>Cadastrar</button>
   <button data-v="perfil"><span>🙂</span>Perfil</button>
 </nav>
-<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
-const ofertas=[
- {nome:"Biscoito recheado 140 g",marca:"Marca Exemplo",cat:"Mercearia",de:4.5,por:1.99,dias:6,horas:3,autor:"um colaborador confiável",confs:3,emoji:"🍪"},
- {nome:"Iogurte natural 170 g",marca:"Marca Exemplo",cat:"Laticínios",de:3.2,por:1.5,dias:2,horas:30,autor:"um usuário iniciante",confs:1,emoji:"🥛"},
- {nome:"Sabonete líquido 250 ml",marca:"Marca Exemplo",cat:"Higiene",de:null,por:6.9,dias:20,horas:60,autor:"um usuário de alta confiabilidade",confs:5,emoji:"🧴"},
- {nome:"Suco de uva 1 L",marca:"Marca Exemplo",cat:"Bebidas",de:8.9,por:4.9,dias:10,horas:5,autor:"um usuário iniciante",confs:2,emoji:"🍇"},
- {nome:"Macarrão 500 g",marca:"Marca Exemplo",cat:"Mercearia",de:5.5,por:2.9,dias:4,horas:8,autor:"um colaborador confiável",confs:2,emoji:"🍝",indisp:true}
-];
-let filtro="todas";
-const $=s=>document.querySelector(s);
-const moeda=n=>n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-function dataEm(dias){const d=new Date();d.setDate(d.getDate()+dias);return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});}
-function estado(o){
- if(o.indisp)return["Indisponível","t-bad"];
- if(o.horas>=48)return["Desatualizada","t-old"];
- if(o.horas>=24)return["Pode estar desatualizada","t-old"];
- return["Confirmada recentemente","t-ok"];
-}
-function quando(h){return h<1?"agora há pouco":h<48?"há "+h+" h":"há "+Math.floor(h/24)+" dias";}
-function validade(d){
- const t=d<=0?"Vence hoje":d===1?"Vence amanhã":"Vence em "+d+" dias ("+dataEm(d)+")";
- return'<span class="tag '+(d<=3?"t-warn":"t-ok")+'">📅 '+t+'</span>';
-}
-function mostrar(){
- const q=$("#busca").value.trim().toLowerCase();
- let l=ofertas.filter(o=>(o.nome+" "+o.marca+" "+o.cat).toLowerCase().includes(q));
- if(filtro==="indisp")l=l.filter(o=>o.indisp);
- else{l=l.filter(o=>!o.indisp);
-  if(filtro==="vencem")l=l.filter(o=>o.dias<=7);
-  if(filtro==="recentes")l=l.filter(o=>o.horas<24);
-  if(filtro==="preco")l=[...l].sort((a,b)=>a.por-b.por);}
- $("#lista").innerHTML=l.length?l.map(o=>{
-  const e=estado(o);
-  return'<article class="card'+(o.indisp?" off":"")+'"><div class="top"><div class="photo" aria-hidden="true">'+o.emoji+'</div><div><p class="name">'+o.nome+'</p><p class="meta">'+o.marca+" · "+o.cat+'</p></div></div>'
-  +'<div class="price"><span class="por">'+moeda(o.por)+'</span>'+(o.de?'<span class="de">'+moeda(o.de)+'</span>':'<span class="de" style="text-decoration:none">preço original não comprovado</span>')+'</div>'
-  +validade(o.dias)+'<span class="tag '+e[1]+'">'+e[0]+'</span>'
-  +'<p class="small">Fim da promoção: desconhecido<br>Última confirmação: '+quando(o.horas)+" · "+o.confs+' confirmações<br>Publicado por '+o.autor+'</p>'
-  +'<div class="actions"><button class="btn main" data-a="confirmar">Confirmar</button><button class="btn" data-a="atualizar">Atualizar preço</button><button class="btn" data-a="acabou">Acabou</button></div></article>';
- }).join(""):'<p class="empty">Nenhuma oferta encontrada.</p>';
-}
-function aviso(t){const el=$("#toast");el.textContent=t;el.style.display="block";clearTimeout(aviso.t);aviso.t=setTimeout(()=>el.style.display="none",3500);}
-const filtros=[["todas","Todas"],["vencem","Vencem em breve"],["recentes","Atualizadas"],["preco","Menor preço"],["indisp","Indisponíveis"]];
-$("#chips").innerHTML=filtros.map(f=>'<button class="chip" data-f="'+f[0]+'" aria-pressed="'+(f[0]==="todas")+'">'+f[1]+'</button>').join("");
-$("#chips").addEventListener("click",e=>{const b=e.target.closest("[data-f]");if(!b)return;filtro=b.dataset.f;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b));mostrar();});
-$("#lista").addEventListener("click",e=>{if(e.target.dataset.a)aviso("Protótipo: no app real, aqui pediremos sua localização e fotos recentes.");});
-$("#busca").addEventListener("input",mostrar);
-$("#form").addEventListener("submit",e=>{e.preventDefault();aviso("Protótipo: ainda não salvamos nada. Isso vem na Fase 4.");});
-document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>{
- document.querySelectorAll("nav button").forEach(x=>x.removeAttribute("aria-current"));
- b.setAttribute("aria-current","page");
- ["ofertas","cadastrar","perfil"].forEach(v=>$("#v-"+v).hidden=v!==b.dataset.v);
- window.scrollTo(0,0);
-}));
-mostrar();
+document.querySelectorAll("nav button").forEach(function(b){
+ b.addEventListener("click",function(){
+  document.querySelectorAll("nav button").forEach(function(x){x.removeAttribute("aria-current");});
+  b.setAttribute("aria-current","page");
+  ["ofertas","cadastrar","perfil"].forEach(function(v){document.getElementById("v-"+v).hidden=v!==b.dataset.v;});
+  window.scrollTo(0,0);
+ });
+});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9"></script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
+<script src="ofertas.js"></script>
 </body>
 </html>
