@@ -23,7 +23,12 @@
     toast.textContent = t;
     toast.style.display = "block";
     clearTimeout(aviso.t);
-    aviso.t = setTimeout(function () { toast.style.display = "none"; }, 4500);
+    aviso.t = setTimeout(function () { toast.style.display = "none"; }, 6000);
+  }
+
+  var subCadastro = document.querySelector("#v-cadastrar .sub");
+  if (subCadastro) {
+    subCadastro.textContent = "Para cadastrar, você precisa estar na loja. Usamos sua localização só para conferir a distância; não guardamos suas coordenadas.";
   }
 
   function esc(t) {
@@ -53,6 +58,25 @@
     return ["Confirmada recentemente", "t-ok"];
   }
   function urlFoto(caminho) { return db.storage.from(BUCKET).getPublicUrl(caminho).data.publicUrl; }
+
+  // pede a localizacao do celular
+  function pegaLocalizacao() {
+    return new Promise(function (ok, erro) {
+      if (!navigator.geolocation) { erro(new Error("Seu navegador não permite usar a localização.")); return; }
+      navigator.geolocation.getCurrentPosition(
+        function (p) { ok({ lat: p.coords.latitude, lng: p.coords.longitude, precisao: p.coords.accuracy }); },
+        function (e) {
+          var m = e.code === 1
+            ? "Permita o acesso à localização para participar (toque no cadeado ao lado do endereço do site)."
+            : e.code === 3
+              ? "Demorou para achar sua localização. Tente de novo, de preferência perto de uma janela."
+              : "Não foi possível obter sua localização. Confira se o GPS do celular está ligado.";
+          erro(new Error(m));
+        },
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+      );
+    });
+  }
 
   function card(o) {
     var d = diasAte(o.validade);
@@ -146,10 +170,10 @@
     return r.data;
   }
 
-  // botoes Confirmar / Atualizar preco / Acabou
+  // botoes Confirmar / Atualizar preco / Acabou (agora com GPS)
   $("#lista").addEventListener("click", async function (e) {
     var b = e.target.closest("[data-a]");
-    if (!b) return;
+    if (!b || b.disabled) return;
     var acao = b.dataset.a;
     var id = b.dataset.id;
     if (acao === "atualizar") {
@@ -158,27 +182,34 @@
       return;
     }
     if (!window.vaUser) { aviso("Entre na sua conta (aba Perfil) para participar."); return; }
-    var r;
-    if (acao === "confirmar") {
-      b.disabled = true;
-      r = await db.rpc("confirmar_oferta", { p_oferta: id });
-    } else if (acao === "acabou") {
-      if (!window.confirm("Avisar que este produto acabou?")) return;
-      b.disabled = true;
-      r = await db.rpc("reportar_acabou", { p_oferta: id });
-    } else if (acao === "salvar-preco") {
-      var v = Number(b.closest(".preco-box").querySelector("input").value);
-      if (!(v > 0)) { aviso("Digite o novo preço."); return; }
-      b.disabled = true;
-      r = await db.rpc("atualizar_preco", { p_oferta: id, p_preco: v });
-    } else {
-      return;
+    var novoPreco = null;
+    if (acao === "salvar-preco") {
+      novoPreco = Number(b.closest(".preco-box").querySelector("input").value);
+      if (!(novoPreco > 0)) { aviso("Digite o novo preço."); return; }
     }
-    b.disabled = false;
-    if (r.error) { aviso(r.error.message); return; }
-    var p = await atualizaPerfilNaTela();
-    aviso("Obrigado! Sua ação foi registrada." + (p ? " Você tem " + p.pontos + " pontos (" + p.nivel + ")." : ""));
-    await carregaOfertas(true);
+    if (acao === "acabou" && !window.confirm("Avisar que este produto acabou?")) return;
+
+    b.disabled = true;
+    try {
+      aviso("Verificando sua localização...");
+      var loc = await pegaLocalizacao();
+      var base = { p_oferta: id, p_lat: loc.lat, p_lng: loc.lng, p_precisao: loc.precisao };
+      var r;
+      if (acao === "confirmar") r = await db.rpc("confirmar_oferta", base);
+      else if (acao === "acabou") r = await db.rpc("reportar_acabou", base);
+      else if (acao === "salvar-preco") {
+        base.p_preco = novoPreco;
+        r = await db.rpc("atualizar_preco", base);
+      } else return;
+      if (r.error) { aviso(r.error.message); return; }
+      var p = await atualizaPerfilNaTela();
+      aviso("Obrigado! Sua ação foi registrada." + (p ? " Você tem " + p.pontos + " pontos (" + p.nivel + ")." : ""));
+      await carregaOfertas(true);
+    } catch (err) {
+      aviso(err && err.message ? err.message : "Algo deu errado. Tente de novo.");
+    } finally {
+      b.disabled = false;
+    }
   });
 
   function comprime(arquivo) {
@@ -235,6 +266,13 @@
 
     botao.disabled = true;
     try {
+      // 1) confere a localizacao ANTES de enviar as fotos
+      msg.textContent = "Verificando sua localização...";
+      var loc = await pegaLocalizacao();
+      var pre = await db.rpc("verificar_presenca", { p_unidade: uid, p_lat: loc.lat, p_lng: loc.lng, p_precisao: loc.precisao });
+      if (pre.error) throw pre.error;
+
+      // 2) envia as 4 fotos
       var stamp = Date.now();
       var caminhos = [];
       for (var i = 0; i < 4; i++) {
@@ -245,19 +283,24 @@
         if (up.error) throw up.error;
         caminhos.push(caminho);
       }
+
+      // 3) salva a oferta (o banco confere o GPS de novo)
       msg.textContent = "Salvando oferta...";
-      var ins = await db.from("ofertas").insert({
-        unidade_id: uid,
-        nome: nome,
-        marca: marca || null,
-        categoria: $("#f-cat").value,
-        preco_original: de,
-        preco_promocional: por,
-        validade: val,
-        foto_prateleira: caminhos[0],
-        foto_produto: caminhos[1],
-        foto_etiqueta: caminhos[2],
-        foto_validade: caminhos[3]
+      var ins = await db.rpc("cadastrar_oferta", {
+        p_unidade: uid,
+        p_nome: nome,
+        p_marca: marca || null,
+        p_categoria: $("#f-cat").value,
+        p_preco_original: de,
+        p_preco_promocional: por,
+        p_validade: val,
+        p_foto_prateleira: caminhos[0],
+        p_foto_produto: caminhos[1],
+        p_foto_etiqueta: caminhos[2],
+        p_foto_validade: caminhos[3],
+        p_lat: loc.lat,
+        p_lng: loc.lng,
+        p_precisao: loc.precisao
       });
       if (ins.error) throw ins.error;
       $("#form").reset();
@@ -267,7 +310,7 @@
       await carregaOfertas();
       document.querySelector('nav button[data-v="ofertas"]').click();
     } catch (err) {
-      msg.textContent = "Não foi possível enviar (" + (err && err.message ? err.message : "erro desconhecido") + ").";
+      msg.textContent = "Não foi possível enviar: " + (err && err.message ? err.message : "erro desconhecido");
     } finally {
       botao.disabled = false;
     }
