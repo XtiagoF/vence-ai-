@@ -6,6 +6,7 @@
     return;
   }
   var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_CHAVE);
+  window.vaDb = db; // NOVO
   var atual = "inicio";
 
   function traduz(m) {
@@ -89,6 +90,8 @@
     var id = sessao && sessao.user ? sessao.user.id : null;
     if (id === atual) return;
     atual = id;
+    window.vaUser = id ? sessao.user : null; // NOVO
+    document.dispatchEvent(new Event("va-auth")); // NOVO
     if (id) mostraPerfil(sessao.user); else mostraEntrada();
   }
 
