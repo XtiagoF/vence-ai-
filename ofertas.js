@@ -9,6 +9,23 @@
   var filtro = "recentes";
   var ofertas = [];
 
+  // estilos extras e aviso na tela
+  var css = document.createElement("style");
+  css.textContent =
+    "#toast{position:fixed;left:16px;right:16px;bottom:90px;background:var(--ink);color:var(--bg);padding:14px;border-radius:14px;display:none;z-index:5}" +
+    ".preco-box{display:flex;gap:8px;margin-top:10px}.preco-box[hidden]{display:none}.preco-box input{flex:1}";
+  document.head.appendChild(css);
+  var toast = document.createElement("div");
+  toast.id = "toast";
+  toast.setAttribute("role", "status");
+  document.body.appendChild(toast);
+  function aviso(t) {
+    toast.textContent = t;
+    toast.style.display = "block";
+    clearTimeout(aviso.t);
+    aviso.t = setTimeout(function () { toast.style.display = "none"; }, 4500);
+  }
+
   function esc(t) {
     return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -39,12 +56,24 @@
 
   function card(o) {
     var d = diasAte(o.validade);
-    var e = estado(horasDesde(o.confirmado_em));
+    var h = horasDesde(o.confirmado_em);
+    var e = estado(h);
     var t = d <= 0 ? "Vence hoje" : d === 1 ? "Vence amanhã" : "Vence em " + d + " dias (" + dataBR(o.validade) + ")";
     var autor = o.perfis ? esc(o.perfis.apelido) + " (" + esc(o.perfis.nivel) + ")" : "alguém da comunidade";
+    var minha = window.vaUser && window.vaUser.id === o.autor_id;
+    var id = esc(o.id);
     var fotos = [o.foto_prateleira, o.foto_produto, o.foto_etiqueta, o.foto_validade].map(function (f) {
       return '<img alt="Foto da oferta" loading="lazy" src="' + esc(urlFoto(f)) + '">';
     }).join("");
+    var botoes = minha
+      ? '<button class="btn" data-a="acabou" data-id="' + id + '">Acabou</button>'
+      : '<button class="btn main" data-a="confirmar" data-id="' + id + '">Confirmar</button>' +
+        '<button class="btn" data-a="atualizar" data-id="' + id + '">Atualizar preço</button>' +
+        '<button class="btn" data-a="acabou" data-id="' + id + '">Acabou</button>';
+    var caixaPreco = minha ? "" :
+      '<div class="preco-box" hidden><input type="number" step="0.01" min="0" inputmode="decimal" placeholder="Novo preço" aria-label="Novo preço">' +
+      '<button class="btn main" data-a="salvar-preco" data-id="' + id + '">Salvar</button></div>';
+    var n = o.confirmacoes || 0;
     return '<article class="card"><div class="top">' +
       '<img class="photo" alt="Foto do produto" loading="lazy" src="' + esc(urlFoto(o.foto_produto)) + '">' +
       '<div><p class="name">' + esc(o.nome) + '</p><p class="meta">' + esc(o.marca || "Marca não informada") + " · " + esc(o.categoria) + '</p></div></div>' +
@@ -52,7 +81,12 @@
       (o.preco_original ? '<span class="de">' + moeda(o.preco_original) + '</span>' : '<span class="de" style="text-decoration:none">preço original não informado</span>') + '</div>' +
       '<span class="tag ' + (d <= 3 ? "t-warn" : "t-ok") + '">📅 ' + t + '</span>' +
       '<span class="tag ' + e[1] + '">' + e[0] + '</span>' +
-      '<p class="small">Última confirmação: ' + quando(horasDesde(o.confirmado_em)) + '<br>Publicado por ' + autor + '</p>' +
+      (minha ? '<span class="tag t-ok">Sua oferta</span>' : '') +
+      (o.avisos_acabou > 0 ? '<span class="tag t-bad">' + o.avisos_acabou + ' pessoa avisou que acabou</span>' : '') +
+      '<p class="small">Última confirmação: ' + quando(h) + " · " + n + (n === 1 ? " confirmação" : " confirmações") +
+      (o.preco_anterior ? '<br>Preço atualizado pela comunidade (antes: ' + moeda(o.preco_anterior) + ')' : '') +
+      '<br>Publicado por ' + autor + '</p>' +
+      '<div class="actions">' + botoes + '</div>' + caixaPreco +
       '<details><summary>Ver as 4 fotos</summary><div class="fotos">' + fotos + '</div></details></article>';
   }
 
@@ -83,12 +117,12 @@
     $("#f-unidade").innerHTML = opts;
   }
 
-  async function carregaOfertas() {
+  async function carregaOfertas(silencioso) {
     var uid = $("#unidade").value;
     if (!uid) { $("#lista").innerHTML = '<p class="empty">Nenhuma unidade cadastrada ainda.</p>'; return; }
-    $("#lista").innerHTML = '<p class="empty">Carregando...</p>';
+    if (!silencioso) $("#lista").innerHTML = '<p class="empty">Carregando...</p>';
     var r = await db.from("ofertas")
-      .select("id,nome,marca,categoria,preco_original,preco_promocional,validade,foto_prateleira,foto_produto,foto_etiqueta,foto_validade,confirmado_em,perfis(apelido,nivel)")
+      .select("id,autor_id,nome,marca,categoria,preco_original,preco_promocional,preco_anterior,validade,foto_prateleira,foto_produto,foto_etiqueta,foto_validade,confirmado_em,confirmacoes,avisos_acabou,perfis(apelido,nivel)")
       .eq("unidade_id", uid)
       .eq("status", "ativa")
       .gte("validade", hojeISO())
@@ -101,6 +135,51 @@
     ofertas = r.data || [];
     mostra();
   }
+
+  async function atualizaPerfilNaTela() {
+    var u = window.vaUser;
+    if (!u) return null;
+    var r = await db.from("perfis").select("nivel,pontos,reputacao").eq("id", u.id).single();
+    if (r.error || !r.data) return null;
+    if ($("#p-nivel")) $("#p-nivel").textContent = r.data.nivel;
+    if ($("#p-info")) $("#p-info").textContent = "Pontos: " + r.data.pontos + " · Reputação: " + r.data.reputacao + "/100";
+    return r.data;
+  }
+
+  // botoes Confirmar / Atualizar preco / Acabou
+  $("#lista").addEventListener("click", async function (e) {
+    var b = e.target.closest("[data-a]");
+    if (!b) return;
+    var acao = b.dataset.a;
+    var id = b.dataset.id;
+    if (acao === "atualizar") {
+      var caixa = b.closest("article").querySelector(".preco-box");
+      if (caixa) caixa.hidden = !caixa.hidden;
+      return;
+    }
+    if (!window.vaUser) { aviso("Entre na sua conta (aba Perfil) para participar."); return; }
+    var r;
+    if (acao === "confirmar") {
+      b.disabled = true;
+      r = await db.rpc("confirmar_oferta", { p_oferta: id });
+    } else if (acao === "acabou") {
+      if (!window.confirm("Avisar que este produto acabou?")) return;
+      b.disabled = true;
+      r = await db.rpc("reportar_acabou", { p_oferta: id });
+    } else if (acao === "salvar-preco") {
+      var v = Number(b.closest(".preco-box").querySelector("input").value);
+      if (!(v > 0)) { aviso("Digite o novo preço."); return; }
+      b.disabled = true;
+      r = await db.rpc("atualizar_preco", { p_oferta: id, p_preco: v });
+    } else {
+      return;
+    }
+    b.disabled = false;
+    if (r.error) { aviso(r.error.message); return; }
+    var p = await atualizaPerfilNaTela();
+    aviso("Obrigado! Sua ação foi registrada." + (p ? " Você tem " + p.pontos + " pontos (" + p.nivel + ")." : ""));
+    await carregaOfertas(true);
+  });
 
   function comprime(arquivo) {
     return new Promise(function (ok, erro) {
@@ -206,8 +285,8 @@
     mostra();
   });
   $("#busca").addEventListener("input", mostra);
-  $("#unidade").addEventListener("change", carregaOfertas);
-  document.addEventListener("va-auth", atualizaAviso);
+  $("#unidade").addEventListener("change", function () { carregaOfertas(); });
+  document.addEventListener("va-auth", function () { atualizaAviso(); mostra(); });
   atualizaAviso();
 
   (async function () {
