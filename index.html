@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f6f4ee">
 <title>Vence Aí</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
@@ -54,7 +56,8 @@
   <div id="auth-box"></div>
 </section>
 
-<p class="notice">O Vence Aí é um projeto comunitário independente. As informações são enviadas por pessoas e podem mudar a qualquer momento. Não é um aplicativo oficial de nenhuma rede de lojas. <strong>Fase de testes.</strong></p>
+<p class="notice">O Vence Aí é um projeto comunitário independente. As informações são enviadas por pessoas e podem mudar a qualquer momento. Não é um aplicativo oficial de nenhuma rede de lojas. <strong>Fase de testes.</strong><br>
+<a href="termos.html" style="color:var(--primary)">Termos de Uso</a> · <a href="privacidade.html" style="color:var(--primary)">Política de Privacidade</a></p>
 </main>
 
 <nav>
@@ -72,6 +75,9 @@ document.querySelectorAll("nav button").forEach(function(b){
   window.scrollTo(0,0);
  });
 });
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js"); });
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9"></script>
 <script src="config.js"></script>
