@@ -5,56 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f6f4ee">
 <title>Vence Aí</title>
-<style>
-:root{--bg:#f6f4ee;--card:#fffefb;--ink:#2b3a35;--muted:#5f6d67;--line:#e4e0d4;--primary:#3f7d6e;--on-primary:#fff;--soft:#e2f1ea;--warn-bg:#fdeede;--warn-ink:#8a4b14;--ok-bg:#e2f1ea;--ok-ink:#24574a;--old-bg:#fbf0d3;--old-ink:#7a5a00;--bad-bg:#f3e2e2;--bad-ink:#7a2e2e}
-@media(prefers-color-scheme:dark){:root{--bg:#1d2421;--card:#26302c;--ink:#e8efe9;--muted:#aab7b0;--line:#38453f;--primary:#7fc4b2;--on-primary:#12201b;--soft:#2f4a42;--warn-bg:#4a3626;--warn-ink:#f6cfa8;--ok-bg:#2f4a42;--ok-ink:#bfe6d9;--old-bg:#4a4224;--old-ink:#f0dc96;--bad-bg:#4a2c2c;--bad-ink:#f2c0c0}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:17px;line-height:1.45;padding-bottom:90px}
-header{padding:20px 16px 8px}
-h1{margin:0;font-size:26px}
-.sub{color:var(--muted);margin:2px 0 12px;font-size:15px}
-main{padding:0 16px;max-width:640px;margin:0 auto}
-label{display:block;font-weight:600;margin:14px 0 6px}
-input,select{width:100%;padding:13px 14px;font-size:17px;border:1.5px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink)}
-:focus-visible{outline:3px solid var(--primary);outline-offset:2px}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:12px 0}
-.chip{flex:none;padding:10px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);font-size:15px;cursor:pointer}
-.chip[aria-pressed=true]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin:0 0 14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-.top{display:flex;gap:12px}
-.photo{flex:none;width:68px;height:68px;border-radius:14px;background:var(--soft);object-fit:cover}
-.name{font-weight:700;font-size:18px;margin:0}
-.meta{color:var(--muted);font-size:14px;margin:2px 0 0}
-.price{margin:10px 0 4px}
-.por{font-size:26px;font-weight:800;color:var(--primary)}
-.de{color:var(--muted);text-decoration:line-through;margin-left:8px;font-size:15px}
-.tag{display:inline-block;padding:6px 10px;border-radius:10px;font-size:14px;font-weight:600;margin:4px 6px 0 0}
-.t-ok{background:var(--ok-bg);color:var(--ok-ink)}
-.t-old{background:var(--old-bg);color:var(--old-ink)}
-.t-bad{background:var(--bad-bg);color:var(--bad-ink)}
-.t-warn{background:var(--warn-bg);color:var(--warn-ink)}
-.small{color:var(--muted);font-size:14px;margin:8px 0 0}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-button.btn{padding:12px 14px;border-radius:12px;border:1.5px solid var(--primary);background:transparent;color:var(--primary);font-size:15px;font-weight:600;cursor:pointer}
-button.btn.main{background:var(--primary);color:var(--on-primary)}
-button.btn:disabled{opacity:.6}
-details{margin-top:10px}
-summary{cursor:pointer;color:var(--primary);font-weight:600}
-.fotos{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
-.fotos img{width:100%;border-radius:12px}
-.empty{text-align:center;color:var(--muted);padding:30px 0}
-.notice{font-size:13px;color:var(--muted);border-top:1px solid var(--line);margin-top:20px;padding-top:12px}
-nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;padding:12px 4px;border:0;background:transparent;color:var(--muted);font-size:13px;cursor:pointer}
-nav button[aria-current=page]{color:var(--primary);font-weight:700}
-nav span{display:block;font-size:22px}
-.bignum{font-size:34px;font-weight:800;color:var(--primary);margin:0}
-</style>
+<link rel="stylesheet" href="estilo.css">
 </head>
 <body>
-<header>
-  <h1>🌿 Vence Aí</h1>
-  <p class="sub">Ofertas perto da validade, ajudadas pela comunidade</p>
+<header class="topo">
+  <div class="marca" aria-hidden="true"></div>
+  <div>
+    <h1>Vence Aí</h1>
+    <p class="sub">Ofertas perto da validade, ajudadas pela comunidade</p>
+  </div>
 </header>
 <main>
 
@@ -69,7 +28,7 @@ nav span{display:block;font-size:22px}
 
 <section id="v-cadastrar" hidden>
   <h2>Cadastrar oferta</h2>
-  <p class="sub">Fase de testes: use apenas dados de teste. A conferência por GPS ainda será adicionada.</p>
+  <p class="sub">Para cadastrar, você precisa estar na loja.</p>
   <p class="small" id="f-aviso"></p>
   <form id="form">
     <label for="f-unidade">Unidade</label><select id="f-unidade"></select>
@@ -93,18 +52,15 @@ nav span{display:block;font-size:22px}
 <section id="v-perfil" hidden>
   <h2>Meu perfil</h2>
   <div id="auth-box"></div>
-  <div class="card">
-    <p class="small" style="margin:0">Pontos, níveis e distintivos entram nas próximas fases. Sua reputação só vai subir com contribuições comprovadas e confirmadas por outras pessoas.</p>
-  </div>
 </section>
 
 <p class="notice">O Vence Aí é um projeto comunitário independente. As informações são enviadas por pessoas e podem mudar a qualquer momento. Não é um aplicativo oficial de nenhuma rede de lojas. <strong>Fase de testes.</strong></p>
 </main>
 
 <nav>
-  <button data-v="ofertas" aria-current="page"><span>🛒</span>Ofertas</button>
-  <button data-v="cadastrar"><span>➕</span>Cadastrar</button>
-  <button data-v="perfil"><span>🙂</span>Perfil</button>
+  <button data-v="ofertas" aria-current="page">Ofertas</button>
+  <button data-v="cadastrar">Cadastrar</button>
+  <button data-v="perfil">Perfil</button>
 </nav>
 
 <script>
