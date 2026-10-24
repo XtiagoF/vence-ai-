@@ -6,17 +6,20 @@
     return;
   }
   var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_CHAVE);
-  window.vaDb = db; // NOVO
+  window.vaDb = db;
   var atual = "inicio";
+  var recuperando = false;
 
   function traduz(m) {
     m = (m || "").toLowerCase();
     if (m.includes("invalid login")) return "E-mail ou senha incorretos.";
     if (m.includes("not confirmed")) return "Confirme seu e-mail antes de entrar.";
     if (m.includes("already registered")) return "Este e-mail já tem conta. Toque em Entrar.";
-    if (m.includes("rate limit") || m.includes("too many")) return "Muitas tentativas. Espere alguns minutos.";
+    if (m.includes("not authorized")) return "Ainda não é possível enviar e-mails para este endereço (fase de testes).";
+    if (m.includes("rate limit") || m.includes("too many") || m.includes("seconds")) return "Muitas tentativas. Espere alguns minutos.";
     if (m.includes("duplicate") || m.includes("unique")) return "Esse apelido já está em uso.";
     if (m.includes("check constraint") || m.includes("violates check")) return "O apelido precisa ter de 3 a 30 caracteres.";
+    if (m.includes("different from the old")) return "A nova senha precisa ser diferente da atual.";
     if (m.includes("password")) return "Senha inválida. Use pelo menos 8 caracteres.";
     return "Algo deu errado. Tente de novo.";
   }
@@ -28,7 +31,8 @@
       '<label for="a-senha">Senha (mínimo 8 caracteres)</label><input id="a-senha" type="password" autocomplete="current-password">' +
       '<p class="small" id="a-msg" role="status"></p>' +
       '<div class="actions"><button class="btn main" id="a-entrar">Entrar</button>' +
-      '<button class="btn" id="a-criar">Criar conta</button></div></div>';
+      '<button class="btn" id="a-criar">Criar conta</button></div>' +
+      '<div class="actions"><button class="btn" id="a-esqueci" type="button" style="border-color:transparent;padding-left:0">Esqueci minha senha</button></div></div>';
     var msg = document.getElementById("a-msg");
     function campos() {
       return {
@@ -55,6 +59,38 @@
       });
       if (r.error) { msg.textContent = traduz(r.error.message); return; }
       if (!r.data.session) msg.textContent = "Quase lá! Enviamos um e-mail para confirmar sua conta.";
+    };
+    document.getElementById("a-esqueci").onclick = async function () {
+      var c = campos();
+      if (!c.email) { msg.textContent = "Digite seu e-mail acima e toque em Esqueci minha senha."; return; }
+      msg.textContent = "Enviando...";
+      var r = await db.auth.resetPasswordForEmail(c.email, { redirectTo: location.origin + location.pathname });
+      msg.textContent = r.error
+        ? traduz(r.error.message)
+        : "Se esse e-mail tiver conta, enviamos um link para criar uma nova senha. Confira também o spam.";
+    };
+  }
+
+  function mostraNovaSenha() {
+    caixa.innerHTML =
+      '<div class="card"><strong>Criar nova senha</strong>' +
+      '<label for="n-senha">Nova senha (mínimo 8 caracteres)</label><input id="n-senha" type="password" autocomplete="new-password">' +
+      '<label for="n-senha2">Repita a nova senha</label><input id="n-senha2" type="password" autocomplete="new-password">' +
+      '<p class="small" id="a-msg" role="status"></p>' +
+      '<div class="actions"><button class="btn main" id="n-salvar">Salvar nova senha</button></div></div>';
+    var msg = document.getElementById("a-msg");
+    document.getElementById("n-salvar").onclick = async function () {
+      var s1 = document.getElementById("n-senha").value;
+      var s2 = document.getElementById("n-senha2").value;
+      if (s1.length < 8) { msg.textContent = "A senha precisa ter pelo menos 8 caracteres."; return; }
+      if (s1 !== s2) { msg.textContent = "As senhas não são iguais."; return; }
+      msg.textContent = "Salvando...";
+      var r = await db.auth.updateUser({ password: s1 });
+      if (r.error) { msg.textContent = traduz(r.error.message); return; }
+      recuperando = false;
+      var s = await db.auth.getSession();
+      atual = "inicio";
+      desenha(s.data.session);
     };
   }
 
@@ -90,13 +126,24 @@
     var id = sessao && sessao.user ? sessao.user.id : null;
     if (id === atual) return;
     atual = id;
-    window.vaUser = id ? sessao.user : null; // NOVO
-    document.dispatchEvent(new Event("va-auth")); // NOVO
+    window.vaUser = id ? sessao.user : null;
+    document.dispatchEvent(new Event("va-auth"));
+    if (recuperando && id) return;
     if (id) mostraPerfil(sessao.user); else mostraEntrada();
   }
 
   db.auth.getSession().then(function (r) { desenha(r.data.session); });
   db.auth.onAuthStateChange(function (evento, sessao) {
+    if (evento === "PASSWORD_RECOVERY") {
+      recuperando = true;
+      setTimeout(function () {
+        mostraNovaSenha();
+        var aba = document.querySelector('nav button[data-v="perfil"]');
+        if (aba) aba.click();
+      }, 0);
+      return;
+    }
+    if (evento === "SIGNED_OUT") recuperando = false;
     if (evento === "SIGNED_IN" || evento === "SIGNED_OUT") {
       setTimeout(function () { desenha(sessao); }, 0);
     }
