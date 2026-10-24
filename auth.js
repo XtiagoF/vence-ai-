@@ -9,6 +9,7 @@
   window.vaDb = db;
   var atual = "inicio";
   var recuperando = false;
+  var VERSAO_TERMOS = "2026-10-24";
 
   function traduz(m) {
     m = (m || "").toLowerCase();
@@ -29,6 +30,11 @@
       '<div class="card"><strong>Entrar ou criar conta</strong>' +
       '<label for="a-email">E-mail</label><input id="a-email" type="email" autocomplete="email">' +
       '<label for="a-senha">Senha (mínimo 8 caracteres)</label><input id="a-senha" type="password" autocomplete="current-password">' +
+      '<label style="display:flex;align-items:flex-start;gap:10px;font-weight:400;font-size:14px;margin:14px 0 0">' +
+      '<input type="checkbox" id="a-aceite" style="width:20px;height:20px;min-height:20px;margin:2px 0 0;flex:none">' +
+      '<span>Para criar conta: tenho 18 anos ou mais e li e aceito os ' +
+      '<a href="termos.html" target="_blank" rel="noopener" style="color:var(--primary)">Termos de Uso</a> e a ' +
+      '<a href="privacidade.html" target="_blank" rel="noopener" style="color:var(--primary)">Política de Privacidade</a>.</span></label>' +
       '<p class="small" id="a-msg" role="status"></p>' +
       '<div class="actions"><button class="btn main" id="a-entrar">Entrar</button>' +
       '<button class="btn" id="a-criar">Criar conta</button></div>' +
@@ -51,11 +57,18 @@
       var c = campos();
       if (!c.email) { msg.textContent = "Preencha o e-mail."; return; }
       if (c.senha.length < 8) { msg.textContent = "A senha precisa ter pelo menos 8 caracteres."; return; }
+      if (!document.getElementById("a-aceite").checked) {
+        msg.textContent = "Marque que você tem 18 anos ou mais e aceita os Termos e a Política de Privacidade.";
+        return;
+      }
       msg.textContent = "Criando conta...";
       var r = await db.auth.signUp({
         email: c.email,
         password: c.senha,
-        options: { emailRedirectTo: location.origin + location.pathname }
+        options: {
+          emailRedirectTo: location.origin + location.pathname,
+          data: { aceite_termos_em: new Date().toISOString(), versao_termos: VERSAO_TERMOS }
+        }
       });
       if (r.error) { msg.textContent = traduz(r.error.message); return; }
       if (!r.data.session) msg.textContent = "Quase lá! Enviamos um e-mail para confirmar sua conta.";
@@ -108,7 +121,8 @@
       '<label for="p-apelido">Apelido público</label><input id="p-apelido" maxlength="30">' +
       '<p class="small" id="a-msg" role="status"></p>' +
       '<div class="actions"><button class="btn main" id="p-salvar">Salvar apelido</button>' +
-      '<button class="btn" id="a-sair">Sair</button></div></div>';
+      '<button class="btn" id="a-sair">Sair</button></div>' +
+      '<div class="actions"><button class="btn" id="p-excluir" type="button" style="border-color:transparent;padding-left:0;color:var(--bad-ink)">Excluir minha conta</button></div></div>';
     document.getElementById("p-nivel").textContent = p.nivel;
     document.getElementById("p-info").textContent = "Pontos: " + p.pontos + " · Reputação: " + p.reputacao + "/100";
     document.getElementById("p-apelido").value = p.apelido;
@@ -120,6 +134,16 @@
       msg.textContent = u.error ? traduz(u.error.message) : "Apelido salvo!";
     };
     document.getElementById("a-sair").onclick = function () { db.auth.signOut(); };
+    document.getElementById("p-excluir").onclick = async function () {
+      if (!window.confirm("Excluir sua conta apaga seu perfil, suas ofertas e seu histórico. Isso não pode ser desfeito. Continuar?")) return;
+      var txt = window.prompt("Para confirmar, digite EXCLUIR:", "");
+      if (txt === null || txt.trim().toUpperCase() !== "EXCLUIR") { msg.textContent = "Exclusão cancelada."; return; }
+      msg.textContent = "Excluindo...";
+      var r2 = await db.rpc("excluir_minha_conta");
+      if (r2.error) { msg.textContent = r2.error.message; return; }
+      await db.auth.signOut({ scope: "local" });
+      window.alert("Sua conta foi excluída. Obrigado por ter participado.");
+    };
   }
 
   function desenha(sessao) {
