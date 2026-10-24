@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Auditoria de segurança - Vence Aí</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#f6f4ee;color:#2b3a35;line-height:1.45;max-width:640px;margin:0 auto}
+@media(prefers-color-scheme:dark){body{background:#1d2421;color:#e8efe9}}
+h1{font-size:22px}
+h2{font-size:18px;margin-top:28px}
+input{display:block;width:100%;padding:12px;margin:8px 0;font-size:16px;border:1.5px solid #999;border-radius:10px;box-sizing:border-box}
+button{padding:12px 16px;font-size:16px;border-radius:10px;border:0;background:#3f7d6e;color:#fff;font-weight:600;margin-top:6px}
+button:disabled{opacity:.6}
+.l{padding:8px 0;border-bottom:1px solid #8885;font-size:15px;word-break:break-word}
+.ok{color:#1f8a4c}
+.no{color:#d64535;font-weight:700}
+small{opacity:.8}
+.res{font-weight:700;margin-top:12px}
+</style>
+</head>
+<body>
+<h1>Auditoria de segurança</h1>
+<p>Esta página tenta "atacar" o app. Cada teste ✅ significa que o ataque foi <strong>bloqueado</strong>. Qualquer ❌ precisa de atenção. <strong>Apague este arquivo antes de divulgar o app.</strong></p>
+
+<h2>Teste 1: como visitante (sem login)</h2>
+<button id="b-anon">Rodar testes sem login</button>
+<div id="res-anon" class="res"></div>
+<div id="saida-anon"></div>
+
+<h2>Teste 2: como pessoa logada comum</h2>
+<p class="small">Use a <strong>conta 2</strong> (não administradora). A senha só vai para o Supabase e não fica guardada.</p>
+<input id="email" type="email" placeholder="E-mail da conta 2" autocomplete="off">
+<input id="senha" type="password" placeholder="Senha" autocomplete="off">
+<button id="b-log">Rodar testes logado</button>
+<div id="res-log" class="res"></div>
+<div id="saida-log"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.9"></script>
+<script src="config.js"></script>
+<script>
+var ZERO = "00000000-0000-0000-0000-000000000000";
+function esc(t) {
+  return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+function curto(m) { return String(m || "").slice(0, 110); }
+function novoCliente() {
+  return window.supabase.createClient(SUPABASE_URL, SUPABASE_CHAVE, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+}
+function jpeg() { return new Blob([new Uint8Array([255, 216, 255, 217])], { type: "image/jpeg" }); }
+function daqui(dias) { return new Date(Date.now() + dias * 86400000).toISOString().slice(0, 10); }
+
+var cont = { total: 0, passou: 0 };
+function zera(id) {
+  cont = { total: 0, passou: 0 };
+  document.getElementById("saida-" + id).innerHTML = "";
+  document.getElementById("res-" + id).textContent = "";
+}
+function linha(id, nome, ok, det) {
+  cont.total++;
+  if (ok) cont.passou++;
+  var d = document.createElement("div");
+  d.className = "l";
+  d.innerHTML = '<span class="' + (ok ? "ok" : "no") + '">' + (ok ? "✅ " : "❌ ") + esc(nome) + "</span><br><small>" + esc(det) + "</small>";
+  document.getElementById("saida-" + id).appendChild(d);
+}
+function fecha(id) {
+  var r = document.getElementById("res-" + id);
+  r.textContent = "Resultado: " + cont.passou + " de " + cont.total + " testes passaram" + (cont.passou === cont.total ? " ✅" : " ⚠️ (veja os ❌)");
+}
+
+async function deveNegar(id, nome, p) {
+  try {
+    var r = await p;
+    if (r.error) linha(id, nome, true, "Bloqueado: " + curto(r.error.message));
+    else linha(id, nome, false, "NÃO foi bloqueado!");
+  } catch (e) { linha(id, nome, true, "Bloqueado: " + curto(e.message)); }
+}
+async function deveSemLinhas(id, nome, p) {
+  try {
+    var r = await p;
+    if (r.error) linha(id, nome, true, "Bloqueado: " + curto(r.error.message));
+    else if (r.data && r.data.length === 0) linha(id, nome, true, "Nenhuma linha alterada");
+    else linha(id, nome, false, "Alterou dados de outra pessoa!");
+  } catch (e) { linha(id, nome, true, "Bloqueado: " + curto(e.message)); }
+}
+async function devePermitir(id, nome, p) {
+  try {
+    var r = await p;
+    if (r.error) linha(id, nome, false, "Bloqueado indevidamente: " + curto(r.error.message));
+    else linha(id, nome, true, "Funcionou normalmente");
+  } catch (e) { linha(id, nome, false, curto(e.message)); }
+}
+
+async function rodaAnonimo() {
+  var A = "anon";
+  zera(A);
+  var db = novoCliente();
+  await deveNegar(A, "Ler histórico de ações (confirmacoes)", db.from("confirmacoes").select("id").limit(1));
+  await deveNegar(A, "Ler lista de administradores", db.from("admins").select("usuario_id").limit(1));
+  await deveNegar(A, "Ler denúncias", db.from("denuncias").select("id").limit(1));
+  await deveNegar(A, "Ler histórico de moderação", db.from("moderacao_log").select("id").limit(1));
+  await deveNegar(A, "Ler quem está banido", db.from("perfis").select("banido").limit(1));
+  await deveNegar(A, "Inserir oferta direto na tabela", db.from("ofertas").insert({ nome: "teste" }));
+  await deveNegar(A, "Alterar um perfil", db.from("perfis").update({ apelido: "hackeado" }).eq("id", ZERO));
+  await deveNegar(A, "Dar pontos a alguém", db.rpc("dar_pontos", { p_usuario: ZERO, p_pontos: 999 }));
+  await deveNegar(A, "Recalcular reputação", db.rpc("recalcula_reputacao", { p_usuario: ZERO }));
+  await deveNegar(A, "Abrir o painel de moderação", db.rpc("admin_ofertas", { p_modo: "recentes" }));
+  await deveNegar(A, "Perguntar se é administrador", db.rpc("eh_admin"));
+  await deveNegar(A, "Confirmar oferta sem login", db.rpc("confirmar_oferta", { p_oferta: ZERO, p_lat: 0, p_lng: 0, p_precisao: 5 }));
+  await deveNegar(A, "Enviar foto sem login", db.storage.from("fotos-ofertas").upload("anonimo/teste.jpg", jpeg(), { contentType: "image/jpeg" }));
+  await devePermitir(A, "Ler ofertas (deve funcionar)", db.from("ofertas").select("id").limit(1));
+  await devePermitir(A, "Ler unidades (deve funcionar)", db.from("unidades").select("id").limit(1));
+  fecha(A);
+}
+
+async function rodaLogado() {
+  var L = "log";
+  zera(L);
+  var email = document.getElementById("email").value.trim();
+  var senha = document.getElementById("senha").value;
+  if (!email || !senha) { document.getElementById("res-log").textContent = "Preencha e-mail e senha."; return; }
+  var db = novoCliente();
+  var ent = await db.auth.signInWithPassword({ email: email, password: senha });
+  document.getElementById("senha").value = "";
+  if (ent.error) { document.getElementById("res-log").textContent = "Não foi possível entrar: " + curto(ent.error.message); return; }
+  var me = ent.data.user.id;
+
+  var adm = await db.rpc("eh_admin");
+  if (adm.data === true) {
+    document.getElementById("res-log").textContent = "Esta conta é administradora. Use uma conta comum (a conta 2).";
+    await db.auth.signOut();
+    return;
+  }
+  linha(L, "A conta de teste NÃO é administradora", adm.error ? false : adm.data === false, "eh_admin devolveu falso");
+
+  var meu = await db.from("perfis").select("apelido,pontos,nivel,reputacao").eq("id", me).single();
+  var perfil = meu.data || { apelido: "teste", pontos: 0, nivel: "Iniciante", reputacao: 0 };
+  var outro = await db.from("perfis").select("id,apelido").neq("id", me).limit(1);
+  var ofs = await db.from("ofertas").select("id,autor_id,unidade_id,preco_promocional").eq("status", "ativa").order("criado_em", { ascending: false }).limit(10);
+  var lista = ofs.data || [];
+  var deOutro = lista.filter(function (o) { return o.autor_id !== me; })[0] || lista[0];
+  var und = await db.from("unidades").select("id").limit(1);
+  var unidade = (und.data && und.data[0]) ? und.data[0].id : ZERO;
+
+  await deveNegar(L, "Mudar meus próprios pontos", db.from("perfis").update({ pontos: perfil.pontos }).eq("id", me));
+  await deveNegar(L, "Mudar meu próprio nível", db.from("perfis").update({ nivel: perfil.nivel }).eq("id", me));
+  await deveNegar(L, "Mudar minha própria reputação", db.from("perfis").update({ reputacao: perfil.reputacao }).eq("id", me));
+  await deveNegar(L, "Mexer no campo banido", db.from("perfis").update({ banido: false }).eq("id", me));
+  if (outro.data && outro.data[0]) {
+    await deveSemLinhas(L, "Alterar o apelido de outra pessoa", db.from("perfis").update({ apelido: outro.data[0].apelido }).eq("id", outro.data[0].id).select("id"));
+  }
+  await deveNegar(L, "Inserir oferta direto na tabela", db.from("ofertas").insert({ nome: "teste" }));
+  await deveNegar(L, "Alterar oferta direto na tabela", db.from("ofertas").update({ preco_promocional: 1 }).eq("id", ZERO));
+  await deveNegar(L, "Apagar oferta direto na tabela", db.from("ofertas").delete().eq("id", ZERO));
+  await deveNegar(L, "Apagar perfil direto na tabela", db.from("perfis").delete().eq("id", ZERO));
+  await deveNegar(L, "Ler histórico de ações (confirmacoes)", db.from("confirmacoes").select("id").limit(1));
+  await deveNegar(L, "Ler lista de administradores", db.from("admins").select("usuario_id").limit(1));
+  await deveNegar(L, "Ler histórico de moderação", db.from("moderacao_log").select("id").limit(1));
+  await deveNegar(L, "Ler quem está banido", db.from("perfis").select("banido").limit(1));
+  await deveNegar(L, "Dar pontos pela função interna", db.rpc("dar_pontos", { p_usuario: me, p_pontos: 0 }));
+  await deveNegar(L, "Recalcular reputação pela função interna", db.rpc("recalcula_reputacao", { p_usuario: me }));
+  await deveNegar(L, "Abrir o painel de moderação", db.rpc("admin_ofertas", { p_modo: "recentes" }));
+  await deveNegar(L, "Remover oferta como não administrador", db.rpc("admin_remover_oferta", { p_oferta: ZERO, p_motivo: "teste" }));
+  await deveNegar(L, "Banir alguém como não administrador", db.rpc("admin_banir_usuario", { p_usuario: ZERO, p_motivo: "teste" }));
+  await deveNegar(L, "Cadastrar oferta com fotos de outra pessoa", db.rpc("cadastrar_oferta", {
+    p_unidade: unidade, p_nome: "Teste de segurança", p_marca: null, p_categoria: "Outros",
+    p_preco_original: null, p_preco_promocional: 1, p_validade: daqui(5),
+    p_foto_prateleira: ZERO + "/a.jpg", p_foto_produto: ZERO + "/b.jpg",
+    p_foto_etiqueta: ZERO + "/c.jpg", p_foto_validade: ZERO + "/d.jpg",
+    p_lat: 0, p_lng: 0, p_precisao: 5
+  }));
+  if (deOutro) {
+    await deveNegar(L, "Confirmar oferta com GPS falso (0,0)", db.rpc("confirmar_oferta", { p_oferta: deOutro.id, p_lat: 0, p_lng: 0, p_precisao: 5 }));
+  } else {
+    linha(L, "Confirmar oferta com GPS falso (0,0)", true, "Pulado: não há oferta ativa para testar");
+  }
+  await deveNegar(L, "Enviar foto na pasta de outra pessoa", db.storage.from("fotos-ofertas").upload(ZERO + "/teste.jpg", jpeg(), { contentType: "image/jpeg" }));
+  await deveNegar(L, "Enviar arquivo que não é JPEG", db.storage.from("fotos-ofertas").upload(me + "/teste.txt", new Blob(["oi"], { type: "text/plain" }), { contentType: "text/plain" }));
+  await deveNegar(L, "Enviar foto maior que 1 MB", db.storage.from("fotos-ofertas").upload(me + "/grande.jpg", new Blob([new Uint8Array(1200000)], { type: "image/jpeg" }), { contentType: "image/jpeg" }));
+  await devePermitir(L, "Ver meu resumo (deve funcionar)", db.rpc("meu_resumo"));
+  await devePermitir(L, "Ler ofertas (deve funcionar)", db.from("ofertas").select("id").limit(1));
+  fecha(L);
+  await db.auth.signOut();
+}
+
+document.getElementById("b-anon").onclick = async function () {
+  this.disabled = true; await rodaAnonimo(); this.disabled = false;
+};
+document.getElementById("b-log").onclick = async function () {
+  this.disabled = true; await rodaLogado(); this.disabled = false;
+};
+</script>
+</body>
+</html>
