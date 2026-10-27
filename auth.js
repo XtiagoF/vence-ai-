@@ -11,6 +11,18 @@
   var recuperando = false;
   var VERSAO_TERMOS = "2026-10-24";
 
+  // como a pessoa chegou: link de recuperação (formato novo ou antigo) ou link com erro
+  var params = new URLSearchParams(location.search);
+  var tokenRecuperacao = params.get("type") === "recovery" ? params.get("token_hash") : null;
+  var hashInicial = location.hash || "";
+  var erroNoLink = /error_code=otp_expired|error=access_denied/.test(hashInicial);
+  if (tokenRecuperacao || /type=recovery/.test(hashInicial)) recuperando = true;
+
+  function irParaPerfil() {
+    var aba = document.querySelector('nav button[data-v="perfil"]');
+    if (aba) aba.click();
+  }
+
   function traduz(m) {
     m = (m || "").toLowerCase();
     if (m.includes("invalid login")) return "E-mail ou senha incorretos.";
@@ -40,6 +52,10 @@
       '<button class="btn" id="a-criar">Criar conta</button></div>' +
       '<div class="actions"><button class="btn" id="a-esqueci" type="button" style="border-color:transparent;padding-left:0">Esqueci minha senha</button></div></div>';
     var msg = document.getElementById("a-msg");
+    if (erroNoLink) {
+      msg.textContent = "O link do e-mail expirou ou já foi usado. Toque em Esqueci minha senha para receber outro.";
+      erroNoLink = false;
+    }
     function campos() {
       return {
         email: document.getElementById("a-email").value.trim(),
@@ -84,7 +100,7 @@
     };
   }
 
-  function mostraNovaSenha() {
+  function mostraNovaSenha(token) {
     caixa.innerHTML =
       '<div class="card"><strong>Criar nova senha</strong>' +
       '<label for="n-senha">Nova senha (mínimo 8 caracteres)</label><input id="n-senha" type="password" autocomplete="new-password">' +
@@ -98,8 +114,17 @@
       if (s1.length < 8) { msg.textContent = "A senha precisa ter pelo menos 8 caracteres."; return; }
       if (s1 !== s2) { msg.textContent = "As senhas não são iguais."; return; }
       msg.textContent = "Salvando...";
+      if (token) {
+        var v = await db.auth.verifyOtp({ token_hash: token, type: "recovery" });
+        if (v.error) {
+          msg.textContent = "Este link expirou ou já foi usado. Volte e peça um novo em Esqueci minha senha.";
+          return;
+        }
+        token = null;
+      }
       var r = await db.auth.updateUser({ password: s1 });
       if (r.error) { msg.textContent = traduz(r.error.message); return; }
+      history.replaceState(null, "", location.pathname);
       recuperando = false;
       var s = await db.auth.getSession();
       atual = "inicio";
@@ -152,18 +177,28 @@
     atual = id;
     window.vaUser = id ? sessao.user : null;
     document.dispatchEvent(new Event("va-auth"));
-    if (recuperando && id) return;
+    if (recuperando) return;
     if (id) mostraPerfil(sessao.user); else mostraEntrada();
   }
 
-  db.auth.getSession().then(function (r) { desenha(r.data.session); });
+  // chegou pelo link novo do e-mail de recuperação
+  if (tokenRecuperacao) { mostraNovaSenha(tokenRecuperacao); irParaPerfil(); }
+  if (erroNoLink) irParaPerfil();
+
+  db.auth.getSession().then(function (r) {
+    var s = r.data.session;
+    if (recuperando && !tokenRecuperacao) {
+      if (s) { mostraNovaSenha(null); irParaPerfil(); } else { recuperando = false; }
+    }
+    desenha(s);
+  });
+
   db.auth.onAuthStateChange(function (evento, sessao) {
     if (evento === "PASSWORD_RECOVERY") {
       recuperando = true;
       setTimeout(function () {
-        mostraNovaSenha();
-        var aba = document.querySelector('nav button[data-v="perfil"]');
-        if (aba) aba.click();
+        mostraNovaSenha(null);
+        irParaPerfil();
       }, 0);
       return;
     }
